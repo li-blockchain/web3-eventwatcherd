@@ -10,7 +10,7 @@ admin.initializeApp({
 
 const db = admin.firestore();
 
-const web3 = createAlchemyWeb3(`wss://eth-mainnet.g.alcheme.com/v2/${process.env.ALCHEMY_API_KEY}`);
+const web3 = createAlchemyWeb3(`wss://eth-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`);
 
 const listeners = [];
 
@@ -36,6 +36,9 @@ const listenForEvents = async () => {
             console.log("Event: ", event);
             console.log("Event Data: ", event.returnValues);
             console.log("Event Block: ", event.blockNumber);
+            console.log("Event Transaction hash: ", event.transactionHash);
+
+            let tx = await web3.eth.getTransaction(event.transactionHash);
 
             const now = new Date();
             const nowUTC = new Date(now.getTime() + (now.getTimezoneOffset() * 60000));
@@ -49,8 +52,12 @@ const listenForEvents = async () => {
                 },
                 body: JSON.stringify({
                     event: event.returnValues,
-                    block: event.blockNumber
+                    block: event.blockNumber,
+                    tx,
+                    timestamp: nowUTC
                 })
+            }).catch((error) => {
+                console.log("Error: ", error);
             });
         }).on('error', (error) => { 
             console.log("Error: ", error);
@@ -63,6 +70,7 @@ const watchForChanges = async () => {
     db.collection('listeners').onSnapshot(async (snapshot) => {
         console.log("Change detected!");
         listeners.length = 0;
+        web3.eth.clearSubscriptions();
         await readListeners();
         await listenForEvents();
     });
